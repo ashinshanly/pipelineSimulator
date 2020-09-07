@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
 		//	THIS IS WHERE ALL EXECUTION AND WRITE-BACK HAPPENS
 		//		All possible branching and instructions handled here
 		//		-Data hazards checked here
-		for (unsigned int i = 0; i < curPipeSize && (controlLimit == -1 || (int)i < controlLimit) && i < maxCycles; i++) {
+		for (unsigned int i = 0; i < curPipeSize && i < maxCycles; i++) {
 			//cout << pipeline[i][cycle - 1] << '\n';
 
 			//calculate the amount of hazard offset needed
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 
 							hazard_offset = difference;
 							if (pipeinstructions[i-1] != "nop") { //need nops
-								for(unsigned int addNop = 0; addNop < hazard_offset - 1; addNop++) { //add the right number of nops
+								for(unsigned int addNop = 0; addNop < hazard_offset ; addNop++) { //add the right number of nops
 									pipeinstructions.insert(pipeinstructions.begin() + i, "nop");
 
 									pipeline.insert(pipeline.begin() + i, vector<int>());
