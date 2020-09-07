@@ -1,0 +1,7 @@
+add $t2,$t2,$t1
+loop:
+sub $t4,$s1
+addi $s1,$s1,1
+beq $t4,$zero,loop
+add $s7,$s0,$s0
+
