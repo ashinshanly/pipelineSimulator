@@ -5,6 +5,12 @@ void add_(int* destRegister, int* leftRegister, int* rightRegister) {   ////////
 	*destRegister = *leftRegister + *rightRegister;
 }
 
+void load_(int* destRegister, int* leftRegister, int immediate) {
+	*destRegister = *leftRegister + immediate;
+}
+void store_(int* destRegister, int* leftRegister, int immediate) {
+	*destRegister = *leftRegister + immediate;
+}
 void sub_(int* destRegister, int* leftRegister, int* rightRegister) {   //////////
 	*destRegister = *leftRegister - *rightRegister;
 }
@@ -27,14 +33,6 @@ void or_(int* destRegister, int* leftRegister, int* rightRegister) {
 
 void ori_(int* destRegister, int* leftRegister, int immediate) {
 	*destRegister = *leftRegister | immediate;
-}
-
-void slt_(int* destRegister, int* leftRegister, int* rightRegister) {
-	*destRegister = *leftRegister < *rightRegister;
-}
-
-void slti_(int* destRegister, int* leftRegister, int immediate) {
-	*destRegister = *leftRegister < immediate;
 }
 
 bool beq_(int* leftRegister, int* rightRegister) {   ///////////////
