@@ -16,17 +16,15 @@ void print_end() {
 	cout << "END OF SIMULATION" << "\n";
 }
 
-//prints the dashes
 void print_line() {
 	cout << "----------------------------------------------------------------------------------" << '\n';
 }
 
-//prints cycle tabulation
 void print_cycle() {
 	cout << "CPU Cycles ===>     1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16" << endl;
 }
 
-//prints all the registers with their data
+
 void print_regs(int sRegs[8], int tRegs[10]) {
 
 	for (int i = 0; i < 2; i++) {
@@ -54,7 +52,6 @@ void print_regs(int sRegs[8], int tRegs[10]) {
 	}
 }
 
-//pipeling contains a matrix of the stage cycle. The stage cycle is an index to pipestages to represent the chars.
 //0-4 are valid pipeline stages
 //5 is nothing
 //6 represents stalling
@@ -62,21 +59,16 @@ void print_regs(int sRegs[8], int tRegs[10]) {
 string pipestages[11] = { "IF", "ID", "EX", "MEM", "WB", ".",  "*", "*", "*", "*", "*" };
 
 void print_pipeline(vector<string> pipeinstructions, vector< vector<int> > pipeline, int controlLimit) {
-	//Print full new pipeline
+	
 	for (unsigned int i = 0; i < pipeline.size() && (controlLimit == -1 || (int)i <= controlLimit) && i < 16; i++) {
 
-		//print the current instruction
 		cout << pipeinstructions[i];
-
-		//add spacing
 		for (unsigned int k = 0; k < 20 - pipeinstructions[i].length(); k++)
 			cout << ' ';
 
 		for (unsigned int j = 0; j < 15; j++) {
 			cout.width(4);
 			cout.fill(' ');
-
-			//print the current step in the pipeline
 			cout << left << pipestages[pipeline[i][j]];
 		}
 		cout << pipestages[pipeline[i][15]] << endl;
