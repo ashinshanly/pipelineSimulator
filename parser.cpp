@@ -4,15 +4,12 @@
 #include <map>
 using namespace std;
 
-//Maps the label to the proceding line of code.
-map<string, int> labelMap;
 
-//returns whether the line defines a label
+map<string, int> labelMap;
 bool isLabel(string line) {
 	return line.at(line.length() - 1) == ':';
 }
 
-//get line number from a label, for beq's and bne's
 int labelParse(string line) {
 	string instruction = line.substr(0, line.find(" "));
 
@@ -23,28 +20,24 @@ int labelParse(string line) {
 	return -1;
 }
 
-//sets the map for a label line with a colon
 void labelLine(string line, int lineNum) {
 	if (isLabel(line))
 		labelMap[line.substr(0, line.length() - 1)] = lineNum;
 }
 
-//returns the line associated with the given label
 int getLabelLine(string label) {
 	return labelMap.at(label);
 }
 
-//This parser is for the writeback stage
-//Think of this as "execution" parser
-//Returns true for branching
+
 bool parse(string line, int saveReg[8], int tempReg[10]) {
 
-	//pseudo zero-register
+	
 	int zero = 0;
 
 	string instruction = line.substr(0, line.find(" "));
 		
-	if (instruction == "add" || instruction == "or" || instruction == "and" || instruction == "slt") {
+	if (instruction == "sub" || instruction == "add" || instruction == "or" || instruction == "and") {
 
 		string dest_str = line.substr(line.find("$")+1, line.find(",") - (line.find("$") + 1));
 
@@ -81,14 +74,14 @@ bool parse(string line, int saveReg[8], int tempReg[10]) {
 
 		if(instruction == "add")
 			add_(dest, reg1, reg2);
+		else if(instruction == "sub")
+			sub_(dest, reg1, reg2);
 		else if (instruction == "and")
 			and_(dest, reg1, reg2);
 		else if (instruction == "or")
 			or_(dest, reg1, reg2);
-		else if (instruction == "slt")
-			slt_(dest, reg1, reg2);
 	}
-	else if (instruction == "addi" || instruction == "ori" || instruction == "slti" || instruction == "andi") {
+	else if (instruction == "addi" || instruction == "ori" || instruction == "andi") {
 		
 		string dest_str = line.substr(line.find("$") + 1, line.find(","));
 
@@ -123,8 +116,10 @@ bool parse(string line, int saveReg[8], int tempReg[10]) {
 			andi_(dest, reg1, immediate);
 		else if (instruction == "ori")
 			ori_(dest, reg1, immediate);
-		else if (instruction == "slti")
-			slti_(dest, reg1, immediate);
+		else if (instruction == "lw")
+			load_(dest, reg1, immediate);
+		else if (instruction == "sw")
+			store_(dest, reg1, immediate);
 	}
 	else if (instruction == "bne" || instruction == "beq") {
 		string left_str = line.substr(line.find("$") + 1, line.find(",") - (line.find("$") + 1));
