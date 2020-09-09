@@ -1,239 +1,159 @@
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <cstring>
-#include <math.h>
-
-#include "execution.h"
 #include "parser.h"
-#include "hazard_parser.h"
-#include "printer.h"
-
+#include <string>
+#include "execution.h"
+#include <map>
 using namespace std;
 
-unsigned int predictiveStallNum = 7;
-unsigned int maxCycles = 16;
 
-int main(int argc, char* argv[])
-{
-	int tRegs[10], sRegs[8];
-	for (int i = 0; i < 10; i++) {
-		tRegs[i] = 0;
-		if(i < 8)
-			sRegs[i] = 0;
+map<string, int> labelMap;
+bool isLabel(string line) {
+	return line.at(line.length() - 1) == ':';
+}
+
+int labelParse(string line) {
+	string instruction = line.substr(0, line.find(" "));
+
+	if (instruction == "bne" || instruction == "beq") {
+		string label = line.substr(line.find_last_of(",") + 1);
+		return getLabelLine(label);
 	}
-	
-	bool forwarding = *argv[1] == 'F';
+	return -1;
+}
 
-	print_start(forwarding);
+void labelLine(string line, int lineNum) {
+	if (isLabel(line))
+		labelMap[line.substr(0, line.length() - 1)] = lineNum;
+}
 
-	ifstream inputstream(argv[2]);
-	vector<string> instructions;
-	string temp, temp2;
-	int labelcount = 0;
-	int lineCount = 0;
-	while(inputstream >> temp){
-		if(isLabel(temp)){
-			labelLine(temp, lineCount); 
-			instructions.push_back(temp);
-			labelcount++;
-		} else {
-			inputstream >> temp2;
-			instructions.push_back(temp + ' ' + temp2);
-			lineCount++; 
-		}
-	}
+int getLabelLine(string label) {
+	return labelMap.at(label);
+}
 
-	vector<vector<int> > pipeline;	  
-	vector<string> pipeinstructions;  
-	int controlLimit = -1;										//control hazard
-	unsigned int total = instructions.size() - labelcount + 4;  
-	unsigned int cycle = 0;										
-	unsigned int instructionIterator = 0;						
-	while(cycle != total && cycle < maxCycles){
-		print_line();
-		if(!forwarding){
-			
-			print_cycle();
-		}
-		else
-		{
-			cout<<"Executing Instructions"<<"\n";
-		}
-		
-		
-		bool stallHazard = false;
 
-		unsigned int curPipeSize = pipeline.size();
-
-		
-		vector<int> inst;
-		for (unsigned int i = 0; i < curPipeSize && (controlLimit == -1 || (int)i < controlLimit) && i < maxCycles; i++) {
-			//cout << pipeline[i][cycle - 1] << '\n';
-
-			unsigned int hazard_offset = 0;
-
-			if (pipeline[i][cycle - 1] + 1 == 2 && pipeinstructions[i] != "nop") {//only on ID check for hazards
-
-				int realLines = 0;
-
-				//hazard detection (only when forwarding is false)
-				for (int j = i - 1; j >= 0 && !forwarding; j--) {
-
-					if (pipeinstructions[j] != "nop") {
-						realLines++;
-
-						unsigned int difference = 3 - (i - (i-realLines));
-
-					    bool hazardFound = dataHazard(pipeinstructions[i], pipeinstructions[j]);
-
-						if (hazardFound && difference > hazard_offset && realLines <= 2 && pipeline[j][cycle] != 5) {
-							//cout<<"Hazard!\n";
-							stallHazard = true;
-							
-							
-							hazard_offset = difference;
-							if (pipeinstructions[i-1] != "nop") { 
-								//cout<<"Hazard11111!\n";
-								for(unsigned int addNop = 0; addNop < hazard_offset ; addNop++) { 
-									pipeinstructions.insert(pipeinstructions.begin() + i, "nop");
-
-									pipeline.insert(pipeline.begin() + i, vector<int>());
-
-									for (unsigned int k = 0; k < maxCycles; k++)
-										pipeline[i].push_back(5);
-
-									pipeline[i][cycle - 2] = 0;
-									pipeline[i][cycle - 1] = 1;
-									pipeline[i][cycle] = 6;
-								}
-								i += hazard_offset;
-								curPipeSize += hazard_offset;
-								total += hazard_offset;
-							}
-						}
-						
-					}
-				}
-			}
-
-			if (hazard_offset == 0) { 
-
-				for (int j = i - 1; j >= 0 && forwarding; j--) {
-					bool hazardFound = dataHazard(pipeinstructions[i], pipeinstructions[j]);
-
-					if (hazardFound) {
-							inst.push_back(i);
-					}		
-
-				}
-				if (pipeinstructions[i] != "nop") {
-					
-					if (pipeline[i][cycle - 1] == 3) {
-						bool jump = parse(pipeinstructions[i], sRegs, tRegs);
-						if (jump) { 
-
-							for (unsigned int j = i + 1; j < pipeinstructions.size(); j++)
-								pipeline[j][cycle] = predictiveStallNum + (pipeline[j][cycle-1]); 
-
-							int labelline = labelParse(pipeinstructions[i]);
-
-							int curSize = pipeinstructions.size();
-							//if (controlLimit != -1)
-							//	curSize = controlLimit;
-
-							for (unsigned int j = labelline; j < instructions.size(); j++) {
-								if (!isLabel(instructions[j])) {
-									pipeinstructions.push_back(instructions[j]); 
-									total += 1;
-									
-									pipeline.push_back(vector<int>());
-									for (unsigned int k = 0; k < maxCycles; k++)
-										pipeline[pipeline.size() - 1].push_back(5);
-								}
-							}
-							pipeline[curSize][cycle] = 0;
-							controlLimit = curSize++;
-						}
-					}
-					if (pipeline[i][cycle] >= (int)predictiveStallNum) {}
-					else if (pipeline[i][cycle - 1] < 4 && !stallHazard)
-						pipeline[i][cycle] = pipeline[i][cycle - 1] + 1;
-					else if (pipeline[i][cycle - 1] < 4 && stallHazard)
-						pipeline[i][cycle] = pipeline[i][cycle - 1];
-					else if (pipeline[i][cycle - 1] >= (int)predictiveStallNum && pipeline[i][cycle - 1]  < 10 && !stallHazard)
-						pipeline[i][cycle] = pipeline[i][cycle - 1] + 1;
-
-					int doublestall = i >= 2 && pipeline[i - 2][cycle] == 6;
-					int checkcycle = 4 -  doublestall;
-
-					if (i >= 1 && pipeline[i - 1][cycle] == 6 && pipeline[i][cycle] >= checkcycle && !stallHazard)
-						pipeline[i - 1][cycle] = 5;
-					if (i >= 2 && pipeline[i - 2][cycle] == 6 && pipeline[i][cycle] >= checkcycle && !stallHazard)
-						pipeline[i - 2][cycle] = 5;
-				}
-				else if (pipeline[i][cycle - 1] == 6)
-					pipeline[i][cycle] = 6;
-			}
-			else if (pipeline[i][cycle - 1] + 1 == 1)
-				pipeline[i][cycle] = 1;
-			else
-				pipeline[i][cycle] = pipeline[i][cycle - 1]; //stall
-		}
+bool parse(string line, int saveReg[8], int tempReg[10]) {
 
 	
-		unsigned int lineCount = 0;
-		while (lineCount < pipeline.size()) {
-			if (isLabel(pipeinstructions[lineCount]))
-				labelLine(temp, lineCount);
-			lineCount++;
-		}
+	int zero = 0;
 
-		while(instructionIterator < instructions.size() && isLabel(instructions[instructionIterator])) 
-			instructionIterator++;
+	string instruction = line.substr(0, line.find(" "));
+		
+	if (instruction == "sub" || instruction == "add" || instruction == "or" || instruction == "and") {
 
-		if (instructionIterator < instructions.size()) {
-			pipeinstructions.push_back(instructions[instructionIterator]);
-			pipeline.push_back(vector<int>());
+		string dest_str = line.substr(line.find("$")+1, line.find(",") - (line.find("$") + 1));
 
-			for (unsigned int i = 0; i < maxCycles; i++)
-				pipeline[pipeline.size() - 1].push_back(5);
-			pipeline[pipeline.size() - 1][cycle] = 0;
-		}
+		int number = dest_str[1] - '0';
 
-		if (controlLimit != -1 && controlLimit < (int)pipeline.size())
-			pipeline[controlLimit][cycle] = 0;
+		int* dest, *reg1, *reg2;
 
-		if(forwarding){
-			for (unsigned int i = 0; i < pipeline.size() && (controlLimit == -1 || (int)i <= controlLimit) && i < 16; i++) {
-				auto it=find(inst.begin(),inst.end(),i);
-				if(it!=inst.end()){
-						cout << pipeinstructions[i]<<","<<"$L3"<<"\n";
-				}
-			
-				else
-				{
-					cout << pipeinstructions[i]<<"\n";
-				}
-			}
-			
-		}
+		if (dest_str[0] == 't')
+			dest = &(tempReg[number]);
 		else
-		{
-			print_pipeline(pipeinstructions, pipeline, controlLimit);
-		}
-		
-		
-		inst.clear();
-		if (controlLimit != -1 && controlLimit < (int)pipeline.size())
-			controlLimit++;
+			dest = &(saveReg[number]);
 
-		cycle++;
-		instructionIterator++;
-		print_regs(sRegs, tRegs);
+		string reg1_str = line.substr(line.find(",") + 2, line.find_last_of(",") - (line.find(",") + 1));
+
+		number = reg1_str[1] - '0';
+
+		if (reg1_str[0] == 't')
+			reg1 = &(tempReg[number]);
+		else if (reg1_str[0] == 's')
+			reg1 = &(saveReg[number]);
+		else
+			reg1 = &zero;
+
+		string reg2_str = line.substr(line.find_last_of("$")+1);
+
+		number = reg2_str[1] - '0';
+
+		if (reg2_str[0] == 't')
+			reg2 = &(tempReg[number]);
+		else if (reg2_str[0] == 's')
+			reg2 = &(saveReg[number]);
+		else
+			reg2 = &zero;
+
+		if(instruction == "add")
+			add_(dest, reg1, reg2);
+		else if(instruction == "sub")
+			sub_(dest, reg1, reg2);
+		else if (instruction == "and")
+			and_(dest, reg1, reg2);
+		else if (instruction == "or")
+			or_(dest, reg1, reg2);
+	}
+	else if (instruction == "addi" || instruction == "ori" || instruction == "andi") {
+		
+		string dest_str = line.substr(line.find("$") + 1, line.find(","));
+
+		int number = dest_str[1] - '0';
+
+		int* dest, * reg1;
+		int immediate = 0;
+
+		if (dest_str[0] == 't')
+			dest = &(tempReg[number]);
+		else
+			dest = &(saveReg[number]);
+
+		string reg1_str = line.substr(line.find(",") + 2, line.find_last_of(",") - (line.find(",") + 1));
+
+		number = reg1_str[1] - '0';
+
+		if (reg1_str[0] == 't')
+			reg1 = &(tempReg[number]);
+		else if (reg1_str[0] == 's')
+			reg1 = &(saveReg[number]);
+		else
+			reg1 = &zero;
+
+		string imm_str = line.substr(line.find_last_of(",") + 1);
+
+		immediate = atoi((const char*)imm_str.c_str());
+
+		if (instruction == "addi")
+			addi_(dest, reg1, immediate);
+		else if (instruction == "andi")
+			andi_(dest, reg1, immediate);
+		else if (instruction == "ori")
+			ori_(dest, reg1, immediate);
+		else if (instruction == "lw")
+			load_(dest, reg1, immediate);
+		else if (instruction == "sw")
+			store_(dest, reg1, immediate);
+	}
+	else if (instruction == "bne" || instruction == "beq") {
+		string left_str = line.substr(line.find("$") + 1, line.find(",") - (line.find("$") + 1));
+
+		int number = left_str[1] - '0';
+
+		int* left, *right;
+
+		if (left_str[0] == 't')
+			left = &(tempReg[number]);
+		else if (left_str[0] == 's')
+			left = &(saveReg[number]);
+		else
+			left = &zero;
+
+		string right_str = line.substr(line.find_last_of("$")+1, line.find_last_of(",") - (line.find_last_of("$")+1));
+
+		number = right_str[1] - '0';
+
+		if (right_str[0] == 't')
+			right = &(tempReg[number]);
+		else if (right_str[0] == 's')
+			right = &(saveReg[number]);
+		else
+			right = &zero;
+
+		if (instruction == "beq") {
+			if (beq_(left, right))
+				return true;
+		} else if (instruction == "bne")
+            if (bne_(left, right))
+                return true;
+
 	}
 
-	print_end();
+	return false;
 }
