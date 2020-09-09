@@ -15,9 +15,9 @@ void or_(int* destRegister, int* leftRegister, int* rightRegister);
 
 void ori_(int* destRegister, int* leftRegister, int immediate);
 
-void slt_(int* destRegister, int* leftRegister, int* rightRegister);
+void load_(int* destRegister, int* leftRegister, int immediate);
 
-void slti_(int* destRegister, int* leftRegister, int immediate);
+void store_(int* destRegister, int* leftRegister, int immediate);
 
 bool beq_(int* leftRegister, int* rightRegister);
 
